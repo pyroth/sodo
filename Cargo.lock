@@ -5,3 +5,11 @@ version = 4
 [[package]]
 name = "sodo"
 version = "0.1.0"
+
+[[package]]
+name = "sodo-py"
+version = "0.1.0"
+
+[[package]]
+name = "sodo-wasm"
+version = "0.1.0"

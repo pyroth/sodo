@@ -1,5 +1,5 @@
 [workspace]
-members = ["sodo"]
+members = ["sodo", "sodo-py", "sodo-wasm"]
 # Only check / build main crates by default (check all with `--workspace`)
 default-members = ["sodo"]
 
