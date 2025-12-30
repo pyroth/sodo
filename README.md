@@ -1,2 +1,4 @@
-# sudoku
+# sodo
+
 Sudoku in Rust.
+

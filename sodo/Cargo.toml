@@ -1,8 +1,14 @@
 [package]
 name = "sodo"
-version = "0.1.0"
+version = "0.1.1"
 description = "Sudoku in Rust"
-license = "AGPL-3.0-or-later"
+license = "MIT OR Apache-2.0"
 edition = "2024"
 
 [dependencies]
+rand = { workspace = true }
+serde = { workspace = true, optional = true }
+
+[features]
+default = []
+serde = ["dep:serde"]
