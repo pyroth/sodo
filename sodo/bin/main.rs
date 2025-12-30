@@ -41,6 +41,9 @@ enum Command {
         /// Grid size
         #[arg(short, long, default_value = "9")]
         size: usize,
+        /// Also check if puzzle is solvable
+        #[arg(short, long)]
+        check: bool,
     },
     /// Get a hint for the next move
     #[command(visible_alias = "h")]
@@ -78,7 +81,11 @@ fn main() {
     match cli.command {
         Command::Solve { puzzle, file, size } => solve(puzzle, file, size),
         Command::Generate { size, difficulty } => generate(size, difficulty.into()),
-        Command::Validate { puzzle, size } => validate(&puzzle, size),
+        Command::Validate {
+            puzzle,
+            size,
+            check,
+        } => validate(&puzzle, size, check),
         Command::Hint { puzzle, size } => hint(&puzzle, size),
     }
 }
@@ -129,20 +136,31 @@ fn generate(size: usize, difficulty: Difficulty) {
     }
 }
 
-fn validate(puzzle: &str, size: usize) {
+fn validate(puzzle: &str, size: usize, check_solvable: bool) {
     let sudoku = parse(puzzle, size);
     println!("{sudoku}");
 
-    if sudoku.is_valid() {
-        let status = if sudoku.is_complete() {
-            " and complete!"
-        } else {
-            ""
-        };
-        println!("Valid{status}");
-    } else {
+    if !sudoku.is_valid() {
         println!("Invalid!");
         process::exit(1);
+    }
+
+    if sudoku.is_complete() {
+        println!("Valid and complete!");
+        return;
+    }
+
+    if check_solvable {
+        let mut solver = Solver::new();
+        match solver.solve(sudoku) {
+            Ok(_) => println!("Valid and solvable"),
+            Err(_) => {
+                println!("Valid but unsolvable!");
+                process::exit(1);
+            }
+        }
+    } else {
+        println!("Valid");
     }
 }
 
