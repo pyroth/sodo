@@ -1,152 +1,125 @@
-use crate::sudoku::Sudoku;
+use crate::Sudoku;
 
-pub trait SolvingStrategy {
+/// A solving strategy that can make progress on a puzzle.
+pub trait Strategy: Send + Sync {
+    /// Attempts to apply the strategy. Returns true if progress was made.
     fn apply(&self, sudoku: &mut Sudoku) -> bool;
+
+    /// Returns the strategy name.
     fn name(&self) -> &'static str;
 }
 
-/// Naked Singles: If a cell has only one possible candidate, fill it
+/// Returns all available strategies in priority order.
+pub fn all() -> Vec<Box<dyn Strategy>> {
+    vec![Box::new(NakedSingles), Box::new(HiddenSingles)]
+}
+
+/// Fills cells that have only one candidate.
 pub struct NakedSingles;
 
-impl SolvingStrategy for NakedSingles {
+impl Strategy for NakedSingles {
+    fn name(&self) -> &'static str {
+        "Naked Singles"
+    }
+
     fn apply(&self, sudoku: &mut Sudoku) -> bool {
         let mut progress = false;
-        
-        for row in 0..sudoku.size {
-            for col in 0..sudoku.size {
-                if sudoku.grid[row][col].is_empty() {
-                    let candidates = sudoku.get_candidates(row, col);
-                    if candidates.len() == 1 {
-                        let value = *candidates.iter().next().unwrap();
-                        sudoku.set(row, col, value).unwrap();
+
+        for r in 0..sudoku.size {
+            for c in 0..sudoku.size {
+                if sudoku.grid[r][c].is_empty() {
+                    let cands = sudoku.candidates(r, c);
+                    if cands.len() == 1 {
+                        let val = *cands.iter().next().unwrap();
+                        let _ = sudoku.set(r, c, val);
                         progress = true;
                     }
                 }
             }
         }
-        
-        progress
-    }
 
-    fn name(&self) -> &'static str {
-        "Naked Singles"
+        progress
     }
 }
 
-/// Hidden Singles: If a value can only go in one cell in a unit (row, column, or box)
+/// Fills cells where a value can only go in one place within a unit.
 pub struct HiddenSingles;
 
-impl SolvingStrategy for HiddenSingles {
-    fn apply(&self, sudoku: &mut Sudoku) -> bool {
-        let mut progress = false;
-        
-        // Check rows
-        for row in 0..sudoku.size {
-            progress |= self.apply_to_row(sudoku, row);
-        }
-        
-        // Check columns
-        for col in 0..sudoku.size {
-            progress |= self.apply_to_col(sudoku, col);
-        }
-        
-        // Check boxes
-        for box_row in 0..sudoku.box_size {
-            for box_col in 0..sudoku.box_size {
-                progress |= self.apply_to_box(sudoku, box_row, box_col);
-            }
-        }
-        
-        progress
-    }
-
+impl Strategy for HiddenSingles {
     fn name(&self) -> &'static str {
         "Hidden Singles"
     }
-}
 
-impl HiddenSingles {
-    fn apply_to_row(&self, sudoku: &mut Sudoku, row: usize) -> bool {
+    fn apply(&self, sudoku: &mut Sudoku) -> bool {
         let mut progress = false;
-        
-        for value in 1..=sudoku.size as u8 {
-            let mut possible_cells = Vec::new();
-            
-            for col in 0..sudoku.size {
-                if sudoku.grid[row][col].is_empty() {
-                    let candidates = sudoku.get_candidates(row, col);
-                    if candidates.contains(&value) {
-                        possible_cells.push(col);
-                    }
-                }
-            }
-            
-            if possible_cells.len() == 1 {
-                let col = possible_cells[0];
-                sudoku.set(row, col, value).unwrap();
-                progress = true;
+
+        for i in 0..sudoku.size {
+            progress |= apply_row(sudoku, i);
+            progress |= apply_col(sudoku, i);
+        }
+
+        let bs = sudoku.box_size;
+        for br in 0..bs {
+            for bc in 0..bs {
+                progress |= apply_box(sudoku, br, bc);
             }
         }
-        
-        progress
-    }
-    
-    fn apply_to_col(&self, sudoku: &mut Sudoku, col: usize) -> bool {
-        let mut progress = false;
-        
-        for value in 1..=sudoku.size as u8 {
-            let mut possible_cells = Vec::new();
-            
-            for row in 0..sudoku.size {
-                if sudoku.grid[row][col].is_empty() {
-                    let candidates = sudoku.get_candidates(row, col);
-                    if candidates.contains(&value) {
-                        possible_cells.push(row);
-                    }
-                }
-            }
-            
-            if possible_cells.len() == 1 {
-                let row = possible_cells[0];
-                sudoku.set(row, col, value).unwrap();
-                progress = true;
-            }
-        }
-        
-        progress
-    }
-    
-    fn apply_to_box(&self, sudoku: &mut Sudoku, box_row: usize, box_col: usize) -> bool {
-        let mut progress = false;
-        
-        for value in 1..=sudoku.size as u8 {
-            let mut possible_cells = Vec::new();
-            
-            for row in box_row * sudoku.box_size..(box_row + 1) * sudoku.box_size {
-                for col in box_col * sudoku.box_size..(box_col + 1) * sudoku.box_size {
-                    if sudoku.grid[row][col].is_empty() {
-                        let candidates = sudoku.get_candidates(row, col);
-                        if candidates.contains(&value) {
-                            possible_cells.push((row, col));
-                        }
-                    }
-                }
-            }
-            
-            if possible_cells.len() == 1 {
-                let (row, col) = possible_cells[0];
-                sudoku.set(row, col, value).unwrap();
-                progress = true;
-            }
-        }
-        
+
         progress
     }
 }
 
-pub fn get_all_strategies() -> Vec<Box<dyn SolvingStrategy>> {
-    vec![
-        Box::new(NakedSingles),
-        Box::new(HiddenSingles),
-    ]
+fn apply_row(sudoku: &mut Sudoku, row: usize) -> bool {
+    let mut progress = false;
+
+    for val in 1..=sudoku.size as u8 {
+        let cols: Vec<_> = (0..sudoku.size)
+            .filter(|&c| sudoku.grid[row][c].is_empty() && sudoku.candidates(row, c).contains(&val))
+            .collect();
+
+        if cols.len() == 1 {
+            let _ = sudoku.set(row, cols[0], val);
+            progress = true;
+        }
+    }
+
+    progress
+}
+
+fn apply_col(sudoku: &mut Sudoku, col: usize) -> bool {
+    let mut progress = false;
+
+    for val in 1..=sudoku.size as u8 {
+        let rows: Vec<_> = (0..sudoku.size)
+            .filter(|&r| sudoku.grid[r][col].is_empty() && sudoku.candidates(r, col).contains(&val))
+            .collect();
+
+        if rows.len() == 1 {
+            let _ = sudoku.set(rows[0], col, val);
+            progress = true;
+        }
+    }
+
+    progress
+}
+
+fn apply_box(sudoku: &mut Sudoku, br: usize, bc: usize) -> bool {
+    let mut progress = false;
+    let bs = sudoku.box_size;
+    let (sr, sc) = (br * bs, bc * bs);
+
+    for val in 1..=sudoku.size as u8 {
+        let cells: Vec<_> = (sr..sr + bs)
+            .flat_map(|r| (sc..sc + bs).map(move |c| (r, c)))
+            .filter(|&(r, c)| sudoku.grid[r][c].is_empty() && sudoku.candidates(r, c).contains(&val))
+            .collect();
+
+        if cells.len() == 1 {
+            let (r, c) = cells[0];
+            let _ = sudoku.set(r, c, val);
+            progress = true;
+        }
+    }
+
+    progress
 }

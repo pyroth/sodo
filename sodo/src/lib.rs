@@ -1,27 +1,28 @@
 mod solver;
 mod strategy;
-mod sudoku;
+mod sodo;
 
-pub use solver::{Difficulty, SolverStats, SudokuSolver};
-pub use strategy::{get_all_strategies, SolvingStrategy};
-pub use sudoku::{Cell, Sudoku};
+pub use solver::{Difficulty, Solver, Stats};
+pub use strategy::{all as all_strategies, Strategy};
+pub use sodo::{Cell, Sudoku};
 
 use std::{fs, process};
 
-fn parse_size(size_str: &str) -> usize {
-    size_str.parse().unwrap_or_else(|_| {
-        eprintln!("Invalid size: {size_str}");
+fn parse_size(s: &str) -> usize {
+    s.parse().unwrap_or_else(|_| {
+        eprintln!("Invalid size: {s}");
         process::exit(1)
     })
 }
 
-fn parse_puzzle(puzzle_str: &str, size: usize) -> Sudoku {
-    Sudoku::from_string(puzzle_str, size).unwrap_or_else(|e| {
+fn parse_puzzle(s: &str, size: usize) -> Sudoku {
+    Sudoku::from_string(s, size).unwrap_or_else(|e| {
         eprintln!("Error parsing puzzle: {e}");
         process::exit(1)
     })
 }
 
+/// Solves a puzzle from string.
 pub fn solve_puzzle(puzzle_str: &str, size_str: &str) {
     let size = parse_size(size_str);
     let puzzle = parse_puzzle(puzzle_str, size);
@@ -29,38 +30,40 @@ pub fn solve_puzzle(puzzle_str: &str, size_str: &str) {
     println!("Original puzzle:");
     println!("{puzzle}");
 
-    let mut solver = SudokuSolver::new();
+    let mut solver = Solver::new();
 
     match solver.solve_with_stats(puzzle) {
         Ok((solution, stats)) => {
             println!("Solution found!");
             println!("{solution}");
-            println!("\nSolver Statistics:");
-            println!("Iterations: {}", stats.iterations);
-            println!("Cells filled: {}", stats.cells_filled);
-            println!("Backtrack steps: {}", stats.backtrack_steps);
-            println!("Strategies used:");
-            for (strategy, count) in stats.strategies_used {
-                println!("  {strategy}: {count}");
+            println!("\nStatistics:");
+            println!("  Iterations: {}", stats.iterations);
+            println!("  Cells filled: {}", stats.cells_filled);
+            println!("  Backtracks: {}", stats.backtracks);
+            println!("  Strategies:");
+            for (name, count) in &stats.strategies_used {
+                println!("    {name}: {count}");
             }
         }
         Err(e) => {
-            eprintln!("Failed to solve puzzle: {e}");
+            eprintln!("Failed to solve: {e}");
             process::exit(1);
         }
     }
 }
 
-pub fn solve_from_file(file_path: &str, size_str: &str) {
-    let puzzle_str = fs::read_to_string(file_path)
+/// Solves a puzzle from file.
+pub fn solve_from_file(path: &str, size_str: &str) {
+    let content = fs::read_to_string(path)
         .map(|s| s.trim().to_string())
         .unwrap_or_else(|e| {
             eprintln!("Error reading file: {e}");
             process::exit(1)
         });
-    solve_puzzle(&puzzle_str, size_str);
+    solve_puzzle(&content, size_str);
 }
 
+/// Generates a puzzle.
 pub fn generate_puzzle(size_str: &str, difficulty_str: &str) {
     let size = parse_size(size_str);
     let difficulty = match difficulty_str.to_lowercase().as_str() {
@@ -69,25 +72,26 @@ pub fn generate_puzzle(size_str: &str, difficulty_str: &str) {
         "hard" => Difficulty::Hard,
         "expert" => Difficulty::Expert,
         _ => {
-            eprintln!("Invalid difficulty: {difficulty_str}. Use easy, medium, hard, or expert");
+            eprintln!("Invalid difficulty: {difficulty_str}");
             process::exit(1)
         }
     };
 
-    let mut solver = SudokuSolver::new();
+    let mut solver = Solver::new();
 
-    match solver.generate_puzzle(size, difficulty) {
+    match solver.generate(size, difficulty) {
         Ok(puzzle) => {
             println!("Generated {difficulty_str} puzzle ({size}x{size}):");
             println!("{puzzle}");
         }
         Err(e) => {
-            eprintln!("Failed to generate puzzle: {e}");
+            eprintln!("Failed to generate: {e}");
             process::exit(1);
         }
     }
 }
 
+/// Validates a puzzle.
 pub fn validate_puzzle(puzzle_str: &str, size_str: &str) {
     let size = parse_size(size_str);
     let puzzle = parse_puzzle(puzzle_str, size);
@@ -96,28 +100,27 @@ pub fn validate_puzzle(puzzle_str: &str, size_str: &str) {
     println!("{puzzle}");
 
     if puzzle.is_valid() {
-        println!("✓ Puzzle is valid!");
-
+        println!("Valid!");
         if puzzle.is_complete() {
-            println!("✓ Puzzle is complete and solved!");
+            println!("Complete and solved!");
         } else {
-            println!("! Puzzle is valid but not yet complete.");
+            println!("Not yet complete.");
         }
     } else {
-        println!("✗ Puzzle is invalid!");
-
-        if !puzzle.is_valid_rows() {
-            println!("  - Invalid rows detected");
+        println!("Invalid!");
+        if !puzzle.valid_rows() {
+            println!("  - Invalid rows");
         }
-        if !puzzle.is_valid_cols() {
-            println!("  - Invalid columns detected");
+        if !puzzle.valid_cols() {
+            println!("  - Invalid columns");
         }
-        if !puzzle.is_valid_boxes() {
-            println!("  - Invalid boxes detected");
+        if !puzzle.valid_boxes() {
+            println!("  - Invalid boxes");
         }
     }
 }
 
+/// Gets a hint for the puzzle.
 pub fn get_hint(puzzle_str: &str, size_str: &str) {
     let size = parse_size(size_str);
     let mut puzzle = parse_puzzle(puzzle_str, size);
@@ -125,22 +128,17 @@ pub fn get_hint(puzzle_str: &str, size_str: &str) {
     println!("Current puzzle:");
     println!("{puzzle}");
 
-    let mut solver = SudokuSolver::new();
+    let solver = Solver::new();
 
-    match solver.get_hint(&mut puzzle) {
-        Some((row, col, value)) => {
-            println!(
-                "Hint: Place {} at position ({}, {})",
-                value,
-                row + 1,
-                col + 1
-            );
-            puzzle.set(row, col, value).unwrap();
-            println!("\nPuzzle with hint applied:");
+    match solver.hint(&puzzle) {
+        Some((r, c, val)) => {
+            println!("Hint: Place {val} at ({}, {})", r + 1, c + 1);
+            let _ = puzzle.set(r, c, val);
+            println!("\nWith hint applied:");
             println!("{puzzle}");
         }
         None => {
-            println!("No obvious hint available. You might need to use more advanced techniques.");
+            println!("No obvious hint available.");
         }
     }
 }
