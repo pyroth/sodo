@@ -1,6 +1,6 @@
 [package]
 name = "sodo"
-version = "0.2.3"
+version = "0.2.5"
 description = "Sudoku in Rust"
 license = "MIT OR Apache-2.0"
 readme = "../README.md"

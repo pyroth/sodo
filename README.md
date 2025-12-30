@@ -15,7 +15,7 @@ cargo install sodo
 sodo g -d hard
 
 # Solve a puzzle
-sodo s 530070000600195000098000060800060003400803001700020006060000280000419005000080079
+sodo s <puzzle>
 
 # Get a hint
 sodo h <puzzle>
@@ -30,7 +30,7 @@ sodo v <puzzle>
 use sodo::{Sudoku, Solver};
 
 let puzzle = Sudoku::from_string(
-    "530070000600195000098000060800060003400803001700020006060000280000419005000080079",
+    "..76..23.1.29.4.5.695..34...1...5.6.....6.......3...4...12..38.45.1.87.6.28..61..",
     9
 ).unwrap();
 
@@ -46,4 +46,4 @@ Licensed under either of:
 - Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or <https://www.apache.org/licenses/LICENSE-2.0>)
 - MIT license ([LICENSE-MIT](LICENSE-MIT) or <https://opensource.org/licenses/MIT>)
 
-Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in kand by you, as defined in the Apache-2.0 license, shall be dually licensed as above, without any additional terms or conditions.
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in sodo by you, as defined in the Apache-2.0 license, shall be dually licensed as above, without any additional terms or conditions.

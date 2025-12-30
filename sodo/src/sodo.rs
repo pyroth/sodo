@@ -241,6 +241,19 @@ impl Sudoku {
         let bs = self.box_size;
         (r / bs * bs, c / bs * bs)
     }
+
+    /// Returns a compact string representation (81 chars for 9x9).
+    pub fn to_string_compact(&self) -> String {
+        self.grid
+            .iter()
+            .flatten()
+            .map(|c| match c.value() {
+                None => '.',
+                Some(v) if v <= 9 => (b'0' + v) as char,
+                Some(v) => (b'A' + v - 10) as char,
+            })
+            .collect()
+    }
 }
 
 impl fmt::Display for Sudoku {

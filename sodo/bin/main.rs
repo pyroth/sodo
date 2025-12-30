@@ -118,7 +118,10 @@ fn solve(puzzle: Option<String>, file: Option<PathBuf>, size: usize) {
 fn generate(size: usize, difficulty: Difficulty) {
     let mut solver = Solver::new();
     match solver.generate(size, difficulty) {
-        Ok(puzzle) => println!("{puzzle}"),
+        Ok(puzzle) => {
+            println!("{puzzle}");
+            println!("{}", puzzle.to_string_compact());
+        }
         Err(e) => {
             eprintln!("Failed: {e}");
             process::exit(1);
