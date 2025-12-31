@@ -313,7 +313,7 @@ version = "0.1.0"
 
 [[package]]
 name = "sodo-wasm"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "getrandom",
  "js-sys",
